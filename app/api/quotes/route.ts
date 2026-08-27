@@ -1,48 +1,34 @@
 import { NextResponse } from "next/server";
+import { SYMBOLS, type Quote, type PeriodKey, type PeriodChange } from "../../lib/symbols";
+import { isMarketOpen } from "../../lib/marketStatus";
+import type { SymbolConfig } from "../../lib/symbols";
 
 export const dynamic = "force-dynamic";
 
-export type Category = "지수" | "환율" | "원자재" | "금리" | "코인";
+const DAY_MS = 24 * 60 * 60 * 1000;
 
-interface SymbolConfig {
-  symbol: string;
-  label: string;
-  category: Category;
-  decimals: number;
-  suffix?: string;
+function pctChange(current: number | null, base: number | null): PeriodChange {
+  if (current === null || base === null || base === 0) {
+    return { change: null, changePercent: null };
+  }
+  const change = current - base;
+  return { change, changePercent: (change / base) * 100 };
 }
 
-export const SYMBOLS: SymbolConfig[] = [
-  { symbol: "^KS11", label: "코스피", category: "지수", decimals: 2 },
-  { symbol: "^GSPC", label: "S&P 500", category: "지수", decimals: 2 },
-  { symbol: "^IXIC", label: "나스닥", category: "지수", decimals: 2 },
-  { symbol: "^DJI", label: "다우존스", category: "지수", decimals: 2 },
-  { symbol: "^SOX", label: "필라델피아 반도체", category: "지수", decimals: 2 },
-  { symbol: "KRW=X", label: "원/달러 환율", category: "환율", decimals: 2, suffix: "원" },
-  { symbol: "CL=F", label: "WTI 원유", category: "원자재", decimals: 2, suffix: "$" },
-  { symbol: "GC=F", label: "금(Gold)", category: "원자재", decimals: 2, suffix: "$" },
-  { symbol: "^TNX", label: "미국채 10년 금리", category: "금리", decimals: 3, suffix: "%" },
-  { symbol: "BTC-USD", label: "비트코인", category: "코인", decimals: 0, suffix: "$" },
-];
-
-export interface Quote {
-  symbol: string;
-  label: string;
-  category: Category;
-  decimals: number;
-  suffix?: string;
-  price: number | null;
-  previousClose: number | null;
-  change: number | null;
-  changePercent: number | null;
-  series: number[];
-  error?: string;
+/** Index of the latest timestamp at or before targetMs, falling back to the earliest point. */
+function findCloseBefore(timestampsMs: number[], targetMs: number): number {
+  let idx = 0;
+  for (let i = 0; i < timestampsMs.length; i++) {
+    if (timestampsMs[i] <= targetMs) idx = i;
+    else break;
+  }
+  return idx;
 }
 
 async function fetchOne(cfg: SymbolConfig): Promise<Quote> {
   const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(
     cfg.symbol
-  )}?interval=15m&range=1d`;
+  )}?interval=1d&range=1y`;
 
   try {
     const res = await fetch(url, {
@@ -57,15 +43,32 @@ async function fetchOne(cfg: SymbolConfig): Promise<Quote> {
     const meta = result.meta;
     const price: number | null = meta?.regularMarketPrice ?? null;
     const previousClose: number | null =
-      meta?.chartPreviousClose ?? meta?.previousClose ?? null;
+      meta?.previousClose ?? meta?.chartPreviousClose ?? null;
 
-    const closes: (number | null)[] =
-      result.indicators?.quote?.[0]?.close ?? [];
-    const series = closes.filter((v): v is number => typeof v === "number");
+    const timestamps: number[] = result.timestamp ?? [];
+    const closesRaw: (number | null)[] = result.indicators?.quote?.[0]?.close ?? [];
 
-    const change = price !== null && previousClose !== null ? price - previousClose : null;
-    const changePercent =
-      change !== null && previousClose ? (change / previousClose) * 100 : null;
+    const points: { t: number; c: number }[] = [];
+    for (let i = 0; i < timestamps.length; i++) {
+      const c = closesRaw[i];
+      if (typeof c === "number") points.push({ t: timestamps[i] * 1000, c });
+    }
+
+    const closes = points.map((p) => p.c);
+    const times = points.map((p) => p.t);
+    const now = Date.now();
+
+    const weekIdx = findCloseBefore(times, now - 7 * DAY_MS);
+    const monthIdx = findCloseBefore(times, now - 30 * DAY_MS);
+    const jan1 = new Date(new Date(now).getFullYear(), 0, 1).getTime();
+    const ytdIdx = findCloseBefore(times, jan1);
+
+    const periods: Record<PeriodKey, PeriodChange> = {
+      day: pctChange(price, previousClose),
+      week: pctChange(price, closes[weekIdx] ?? null),
+      month: pctChange(price, closes[monthIdx] ?? null),
+      ytd: pctChange(price, closes[ytdIdx] ?? null),
+    };
 
     return {
       symbol: cfg.symbol,
@@ -75,9 +78,9 @@ async function fetchOne(cfg: SymbolConfig): Promise<Quote> {
       suffix: cfg.suffix,
       price,
       previousClose,
-      change,
-      changePercent,
-      series,
+      periods,
+      series: closes,
+      marketOpen: isMarketOpen(cfg.symbol),
     };
   } catch (err) {
     return {
@@ -88,9 +91,14 @@ async function fetchOne(cfg: SymbolConfig): Promise<Quote> {
       suffix: cfg.suffix,
       price: null,
       previousClose: null,
-      change: null,
-      changePercent: null,
+      periods: {
+        day: { change: null, changePercent: null },
+        week: { change: null, changePercent: null },
+        month: { change: null, changePercent: null },
+        ytd: { change: null, changePercent: null },
+      },
       series: [],
+      marketOpen: isMarketOpen(cfg.symbol),
       error: err instanceof Error ? err.message : "unknown error",
     };
   }
