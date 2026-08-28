@@ -42,8 +42,6 @@ async function fetchOne(cfg: SymbolConfig): Promise<Quote> {
 
     const meta = result.meta;
     const price: number | null = meta?.regularMarketPrice ?? null;
-    const previousClose: number | null =
-      meta?.previousClose ?? meta?.chartPreviousClose ?? null;
 
     const timestamps: number[] = result.timestamp ?? [];
     const closesRaw: (number | null)[] = result.indicators?.quote?.[0]?.close ?? [];
@@ -57,6 +55,12 @@ async function fetchOne(cfg: SymbolConfig): Promise<Quote> {
     const closes = points.map((p) => p.c);
     const times = points.map((p) => p.t);
     const now = Date.now();
+
+    // meta.chartPreviousClose is the close right before the *requested range* started
+    // (a year ago, at range=1y) — not "yesterday". Only meta.previousClose or the
+    // second-to-last daily bar are safe stand-ins for the prior day's close.
+    const previousClose: number | null =
+      meta?.previousClose ?? closes[closes.length - 2] ?? null;
 
     const weekIdx = findCloseBefore(times, now - 7 * DAY_MS);
     const monthIdx = findCloseBefore(times, now - 30 * DAY_MS);
