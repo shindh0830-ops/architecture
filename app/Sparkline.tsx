@@ -5,6 +5,8 @@ interface SparklineProps {
   positive: boolean;
   width?: number;
   height?: number;
+  area?: boolean;
+  id?: string;
 }
 
 export default function Sparkline({
@@ -12,6 +14,8 @@ export default function Sparkline({
   positive,
   width = 120,
   height = 36,
+  area = false,
+  id,
 }: SparklineProps) {
   if (values.length < 2) {
     return <div style={{ width, height }} aria-hidden="true" />;
@@ -32,7 +36,12 @@ export default function Sparkline({
     .map(([x, y], i) => `${i === 0 ? "M" : "L"}${x.toFixed(2)},${y.toFixed(2)}`)
     .join(" ");
 
-  const color = positive ? "var(--delta-good)" : "var(--delta-critical)";
+  const color = positive ? "var(--delta-up)" : "var(--delta-down)";
+  const gradId = `spark-grad-${id ?? "default"}`;
+
+  const areaPath = area
+    ? `${path} L ${points[points.length - 1][0].toFixed(2)},${height} L ${points[0][0].toFixed(2)},${height} Z`
+    : null;
 
   return (
     <svg
@@ -41,7 +50,19 @@ export default function Sparkline({
       viewBox={`0 0 ${width} ${height}`}
       role="img"
       aria-label={positive ? "상승 추세" : "하락 추세"}
+      style={{ overflow: "visible" }}
     >
+      {area && areaPath ? (
+        <>
+          <defs>
+            <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={color} stopOpacity={0.3} />
+              <stop offset="100%" stopColor={color} stopOpacity={0} />
+            </linearGradient>
+          </defs>
+          <path d={areaPath} fill={`url(#${gradId})`} stroke="none" />
+        </>
+      ) : null}
       <path
         d={path}
         fill="none"

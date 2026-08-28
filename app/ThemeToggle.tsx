@@ -30,11 +30,11 @@ export default function ThemeToggle({
   return (
     <button
       type="button"
-      className="theme-toggle"
+      className="icon-btn"
       onClick={() => onChange(NEXT[theme])}
       title={`테마: ${LABEL[theme]} (클릭하여 전환)`}
     >
-      <span aria-hidden="true">{ICON[theme]}</span> {LABEL[theme]}
+      <span aria-hidden="true">{ICON[theme]}</span>
     </button>
   );
 }
