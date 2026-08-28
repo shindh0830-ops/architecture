@@ -47,6 +47,36 @@ export default function SettingsPanel({ open, prefs, onChange, onClose }: Settin
         </div>
 
         <div className="settings-section">
+          <label className="settings-label" htmlFor="color-scheme-select">
+            등락 색상 표준
+          </label>
+          <select
+            id="color-scheme-select"
+            className="settings-select"
+            value={prefs.colorScheme}
+            onChange={(e) => onChange({ ...prefs, colorScheme: e.target.value as Prefs["colorScheme"] })}
+          >
+            <option value="kr">한국 표준 (상승: 🔴 빨강, 하락: 🔵 파랑)</option>
+            <option value="us">글로벌 표준 (상승: 🟢 초록, 하락: 🔴 빨강)</option>
+          </select>
+        </div>
+
+        <div className="settings-section">
+          <label className="settings-label" htmlFor="currency-select">
+            기본 통화
+          </label>
+          <select
+            id="currency-select"
+            className="settings-select"
+            value={prefs.currency}
+            onChange={(e) => onChange({ ...prefs, currency: e.target.value as Prefs["currency"] })}
+          >
+            <option value="USD">달러 ($ USD)</option>
+            <option value="KRW">원화 (₩ KRW)</option>
+          </select>
+        </div>
+
+        <div className="settings-section">
           <label className="settings-label" htmlFor="refresh-interval">
             새로고침 주기
           </label>
@@ -95,11 +125,12 @@ export default function SettingsPanel({ open, prefs, onChange, onClose }: Settin
                   />
                 </div>
                 <div className="symbol-row-move">
-                  <button type="button" disabled={i === 0} onClick={() => move(symbol, -1)} aria-label="위로">
+                  <button type="button" className="move-btn" disabled={i === 0} onClick={() => move(symbol, -1)} aria-label="위로">
                     ▲
                   </button>
                   <button
                     type="button"
+                    className="move-btn"
                     disabled={i === prefs.order.length - 1}
                     onClick={() => move(symbol, 1)}
                     aria-label="아래로"

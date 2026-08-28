@@ -23,6 +23,14 @@ export const SYMBOLS: SymbolConfig[] = [
 
 export const DEFAULT_ORDER = SYMBOLS.map((s) => s.symbol);
 
+/** Symbol used as the USD/KRW exchange rate for currency conversion. */
+export const USD_KRW_SYMBOL = "KRW=X";
+
+/** Symbols representative of each market's open/closed status badge. */
+export const KR_MARKET_SYMBOL = "^KS11";
+export const US_MARKET_SYMBOL = "^GSPC";
+export const CRYPTO_MARKET_SYMBOL = "BTC-USD";
+
 export type PeriodKey = "day" | "week" | "month" | "ytd";
 
 export const PERIODS: { key: PeriodKey; label: string; sparklineLength: number }[] = [

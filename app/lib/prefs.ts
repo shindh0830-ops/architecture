@@ -1,6 +1,9 @@
 import { DEFAULT_ORDER } from "./symbols";
 
 export type ThemeMode = "system" | "light" | "dark";
+export type ColorScheme = "kr" | "us";
+export type Currency = "USD" | "KRW";
+export type ViewMode = "grid" | "table" | "heatmap";
 
 export interface Threshold {
   above?: number;
@@ -13,6 +16,9 @@ export interface Prefs {
   thresholds: Record<string, Threshold>;
   refreshMs: number;
   theme: ThemeMode;
+  colorScheme: ColorScheme;
+  currency: Currency;
+  viewMode: ViewMode;
 }
 
 export const REFRESH_OPTIONS = [10_000, 20_000, 30_000, 60_000];
@@ -23,6 +29,9 @@ export const DEFAULT_PREFS: Prefs = {
   thresholds: {},
   refreshMs: 20_000,
   theme: "system",
+  colorScheme: "kr",
+  currency: "USD",
+  viewMode: "grid",
 };
 
 const STORAGE_KEY = "financial-dashboard-prefs-v1";
@@ -39,6 +48,9 @@ export function loadPrefs(): Prefs {
       thresholds: typeof parsed.thresholds === "object" && parsed.thresholds ? parsed.thresholds : {},
       refreshMs: REFRESH_OPTIONS.includes(parsed.refreshMs) ? parsed.refreshMs : DEFAULT_PREFS.refreshMs,
       theme: ["system", "light", "dark"].includes(parsed.theme) ? parsed.theme : "system",
+      colorScheme: ["kr", "us"].includes(parsed.colorScheme) ? parsed.colorScheme : "kr",
+      currency: ["USD", "KRW"].includes(parsed.currency) ? parsed.currency : "USD",
+      viewMode: ["grid", "table", "heatmap"].includes(parsed.viewMode) ? parsed.viewMode : "grid",
     };
   } catch {
     return DEFAULT_PREFS;
